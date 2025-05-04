@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>KoboToolbox Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f8;
+      padding: 40px;
+    }
+    .container {
+      background: #fff;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    input {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    label {
+      font-weight: bold;
+    }
+    button {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+    select {
+      margin-top: 20px;
+      padding: 10px;
+      width: 100%;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    #output {
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Load KoboToolbox Form Data</h2>
+    <label>Form ID</label>
+    <input type="text" id="formId" placeholder="Enter Form ID">
+    
+    <label>API Token</label>
+    <input type="password" id="apiToken" placeholder="Enter API Token">
+    
+    <button onclick="loadData()">Load Data</button>
+
+    <p style="font-size: 14px; color: gray; margin-top: 10px;">
+      Note: Your API token is sent securely to the backend and never stored.
+    </p>
+
+    <select id="fieldSelect" style="display:none;" onchange="updateChart()"></select>
+    
+    <div id="output">
+      <p><strong>Total Submissions:</strong> <span id="submissionCount">-</span></p>
+      <canvas id="chart" height="100"></canvas>
+    </div>
+  </div>
+
+  <script>
+    let submissions = [];
+    const BACKEND_URL = 'https://your-render-url.onrender.com/get-data'; // Replace with your deployed backend URL
+
+    function loadData() {
+      const formId = document.getElementById('formId').value;
+      const apiToken = document.getElementById('apiToken').value;
+
+      fetch(BACKEND_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ form_id: formId, token: apiToken })
+      })
+      .then(res => res.json())
+      .then(data => {
+        submissions = data.results || [];
+        document.getElementById('submissionCount').textContent = submissions.length;
+
+        const first = submissions[0];
+        const fieldSelect = document.getElementById('fieldSelect');
+        fieldSelect.innerHTML = '';
+
+        Object.keys(first).forEach(key => {
+          if (!key.startsWith('_')) {
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = key;
+            fieldSelect.appendChild(option);
+          }
+        });
+
+        fieldSelect.style.display = 'block';
+        updateChart();
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        alert("Error fetching data. Check your API token and form ID.");
+      });
+    }
+
+    function updateChart() {
+      const fieldName = document.getElementById('fieldSelect').value;
+      const counts = {};
+
+      submissions.forEach(entry => {
+        const value = entry[fieldName];
+        if (value) {
+          counts[value] = (counts[value] || 0) + 1;
+        }
+      });
+
+      const labels = Object.keys(counts);
+      const values = Object.values(counts);
+
+      const ctx = document.getElementById('chart').getContext('2d');
+      if (window.myChart) window.myChart.destroy();
+
+      window.myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: `Responses for "${fieldName}"`,
+            data: values,
+            backgroundColor: 'rgba(59,130,246,0.6)',
+            borderColor: 'rgba(59,130,246,1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
